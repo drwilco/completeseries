@@ -30,6 +30,7 @@ class Book:
         self.bookid = ""
         self.pos = ""
         self.image_url = ""
+        self.rating = 0
 
 
 api_base = 'https://www.goodreads.com'
@@ -154,7 +155,6 @@ def get_read_books(key, secret, user_id, page, per_page):
     token = oauth2.Token(key, secret)
     client = oauth2.Client(consumer, token)
     response, content = client.request(url, "GET")
-    print content
     if response["status"] != "200":
         raise Exception("Grabbing books failed: " +
                         response["status"] + "\n" + content)
@@ -230,9 +230,16 @@ def do_the_thing(key, secret):
             break
 
         workids = get_works_for_books(bookids)
-        works_with_ratings.update(dict(zip(bookids, workids)))
+        for workid, rating in zip(workids, ratings):
+            r = works_with_ratings.get(workid)
+            rn = int(rating)
+            if r:
+                if rn > r:
+                    works_with_ratings[workid] = rn
+            else:
+                works_with_ratings[workid] = rn
 
-    workids = set(works_with_ratings.values())
+    workids = set(works_with_ratings.keys())
     seriesids = set()
 
     bar = progressbar.ProgressBar(widgets=[
@@ -261,7 +268,6 @@ def do_the_thing(key, secret):
 
     for st in series.values():
         s = Series()
-        results.append(s)
         tbd = []
 
         s.sid = st.find("./id").text
@@ -272,6 +278,9 @@ def do_the_thing(key, secret):
             workid = work.find("./work/id").text
             book = Book()
             book.pos = work.find("./user_position").text
+            book.rating = works_with_ratings.get(workid)
+            if not book.rating:
+                book.rating = 0
             if book.pos is None:
                 book.pos = "N/A"
             book.bookid = work.find("./work/best_book/id").text
@@ -286,6 +295,10 @@ def do_the_thing(key, secret):
                 tbd.append(book)
         s.authors = ", ".join(sorted(authors, key=authors.get, reverse=True))
 
+        if len(s.read_books) == 1:
+            rating = s.read_books[0].rating
+            if rating > 0 and rating < 3:
+                continue
         read = set()
         for book in s.read_books:
             posset = pos_to_set(book.pos)
@@ -297,6 +310,7 @@ def do_the_thing(key, secret):
                 s.unneeded_books.append(book)
             else:
                 s.unread_books.append(book)
+        results.append(s)
 
     results.sort(key=lambda x: (x.authors.split(", ")[0].split(" ")[-1],
                  x.authors, x.title))

@@ -678,6 +678,7 @@ body {
       <a href="https://www.goodreads.com/series/{{series.sid|e}}">{{series.title|e}}</a>
     </h1>
     <p>Author(s): {{series.authors|e}}</p>
+    <p>{{series.description}}</p>
     <h3>Read</h3>
     {{ table(series.read_books) }}
     {% if series.unread_books %}
