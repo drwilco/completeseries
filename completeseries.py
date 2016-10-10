@@ -31,6 +31,7 @@ class Book:
         self.pos = ""
         self.image_url = ""
         self.rating = 0
+        self.description = ""
 
 
 api_base = 'https://www.goodreads.com'
@@ -42,23 +43,12 @@ creds = {}
 
 # "3-6" "1-4 omnibus"
 posrange = re.compile(u"^(\d+)[-\u2013](\d+)(:? omnibus)?$")
-# "3,4,5" "1, 2, 3" "3.5, 6.5, 11.5"
-poscomma = re.compile("^\d+(\.\d+)?(, ?\d+(\.\d+)?)+$")
-commaspace = re.compile(", ?")
 
 # position strings we weren't able to deal with
 unmatched_pos = set()
 
 # for dev runs
 max_books = None
-
-
-def s2if(string):
-    try:
-        return int(string)
-    except:
-        pass
-    return float(string)
 
 
 def pos_to_set(inpos):
@@ -84,9 +74,12 @@ def pos_to_set(inpos):
     if m:
         return set(range(int(m.group(1)), int(m.group(2)) + 1))
 
-    m = poscomma.match(inpos)
-    if m:
-        return set(map(s2if, commaspace.split(inpos)))
+    for sep in ["&", ","]:
+        if sep in inpos:
+            sets = map(pos_to_set, inpos.split(sep))
+            if None in sets:
+                return None
+            return reduce(set.union, sets)
 
     unmatched_pos.add(inpos)
     return None
@@ -168,6 +161,7 @@ def get_series_info(seriesid):
     if response["status"] != "200":
         raise Exception("Grabbing series info failed: " +
                         response["status"] + "\n" + url + "\n" + content)
+    print content
     tree = ET.fromstring(content)
     return ET.ElementTree(tree.find("./series"))
 
