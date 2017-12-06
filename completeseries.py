@@ -11,6 +11,7 @@ import tempfile
 import os
 import webbrowser
 import argparse
+import time
 
 
 class Series:
@@ -129,6 +130,25 @@ def login2(key, secret):
     store_creds()
 
 
+def http_get(url):
+    h = httplib2.Http()
+    count = 0
+    while True:
+        try:
+            count += 1
+            response, content = h.request(url, "GET")
+            if response["status"] == "200":
+                return content
+            raise Exception("Grabbing " + url + " failed: " +
+                            response["status"] + "\n" + content)
+        except Exception as e:
+            if count > 2:
+                raise e
+            print e
+            print ("retrying in 10 seconds")
+            time.sleep(10)
+
+
 def get_user_id(key, secret):
     token = oauth2.Token(key, secret)
     client = oauth2.Client(consumer, token)
@@ -156,25 +176,19 @@ def get_read_books(key, secret, user_id, page, per_page):
 
 def get_series_info(seriesid):
     url = (api_base + "/series/" + seriesid + "?format=xml&key=" + dev_key)
-    h = httplib2.Http()
-    response, content = h.request(url, "GET")
-    if response["status"] != "200":
-        raise Exception("Grabbing series info failed: " +
-                        response["status"] + "\n" + url + "\n" + content)
-    print content
-    tree = ET.fromstring(content)
-    return ET.ElementTree(tree.find("./series"))
+    try:
+        content = http_get(url)
+        tree = ET.fromstring(content)
+        return ET.ElementTree(tree.find("./series"))
+    except:
+        return None
 
 
 def get_series_for_work(workid):
     series = set()
     url = (api_base + "/work/" + workid +
            "/series?format=xml&key=" + dev_key)
-    h = httplib2.Http()
-    response, content = h.request(url, "GET")
-    if response["status"] != "200":
-        raise Exception("Grabbing series for work failed: " +
-                        response["status"] + "\n" + url + "\n" + content)
+    content = http_get(url)
     tree = ET.fromstring(content)
     for seriesid in tree.findall(".//series/id"):
         series.add(seriesid.text)
@@ -185,11 +199,7 @@ def get_works_for_books(bookids):
     workids = []
     url = (api_base + "/book/id_to_work_id/" + ",".join(bookids) +
            "?key=" + dev_key)
-    h = httplib2.Http()
-    response, content = h.request(url, "GET")
-    if response["status"] != "200":
-        raise Exception("Converting books to works failed: " +
-                        response["status"] + "\n" + url + "\n" + content)
+    content = http_get(url)
     tree = ET.fromstring(content)
     for workid in tree.findall(".//work-ids/item"):
         workids.append(workid.text)
@@ -256,7 +266,9 @@ def do_the_thing(key, secret):
     ])
 
     for seriesid in bar(seriesids):
-        series[seriesid] = get_series_info(seriesid)
+        sinfo = get_series_info(seriesid)
+        if sinfo:
+            series[seriesid] = sinfo
 
     results = []
 

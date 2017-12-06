@@ -671,7 +671,6 @@ body {
         <thead>
           <tr>
             <td>pos</td>
-            <td></td>
             <td>title</td>
             <td>author</td>
           </tr>
@@ -680,14 +679,6 @@ body {
           {% for book in books %}
             <tr>
               <td data-title="pos">{{book.pos|e}}</td>
-              <td class="slimtd">
-                <a class="thumb" href="#">
-                  <img src="{{book.image_url}}">
-                  <span>
-                    <img src="{{book.image_url}}">
-                  </span>
-                </a>
-              </td>
               <td data-title="title">
                 <a href="https://www.goodreads.com/book/show/{{book.bookid|e}}">{{book.title|e}}</a>
               </td>
